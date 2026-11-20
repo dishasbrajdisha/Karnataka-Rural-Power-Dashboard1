@@ -1,0 +1,2929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Karnataka Rural Power Outage &amp; Grid Reliability Dashboard (2000–2026)</title>
+  <style>
+    /* ==========================================================================
+       DESIGN TOKENS & RESET (Zero External Dependencies)
+       ========================================================================== */
+    :root {
+      --bg-page: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-subtle: #f8fafc;
+      --bg-header: #0f172a;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --border-strong: #cbd5e1;
+
+      --accent-blue: #2563eb;
+      --accent-blue-hover: #1d4ed8;
+      --accent-blue-soft: #eff6ff;
+
+      --status-active-bg: #fef2f2;
+      --status-active-text: #dc2626;
+      --status-active-border: #fecaca;
+
+      --status-dispatched-bg: #fffbeb;
+      --status-dispatched-text: #d97706;
+      --status-dispatched-border: #fde68a;
+
+      --status-resolved-bg: #ecfdf5;
+      --status-resolved-text: #059669;
+      --status-resolved-border: #a7f3d0;
+
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+      --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.07);
+      --shadow-lg: 0 18px 36px rgba(15, 23, 42, 0.18);
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* ==========================================================================
+       TOP NAVIGATION HEADER
+       ========================================================================== */
+    .top-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #ffffff;
+      padding: 1.15rem 1.5rem;
+      border-bottom: 1px solid #334155;
+      box-shadow: var(--shadow-md);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .header-inner {
+      max-width: 1380px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #2563eb, #10b981);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+    }
+
+    .header-title-group h1 {
+      font-size: 1.18rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #f8fafc;
+    }
+
+    .header-subtitle {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.15rem;
+    }
+
+    .header-right {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      color: #6ee7b7;
+      padding: 0.42rem 0.8rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .live-badge.scada-connected {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(96, 165, 250, 0.55);
+      color: #93c5fd;
+    }
+
+    .live-badge.scada-error {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(248, 113, 113, 0.55);
+      color: #fca5a5;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #10b981;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      animation: pulseRing 2s infinite;
+    }
+
+    .live-badge.scada-connected .pulse-dot {
+      background-color: #3b82f6;
+    }
+
+    .live-badge.scada-error .pulse-dot {
+      background-color: #ef4444;
+      animation: none;
+    }
+
+    @keyframes pulseRing {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: var(--accent-blue);
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 0.55rem 0.98rem;
+      font-size: 0.83rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.18s ease, transform 0.12s ease;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-blue-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-header-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.42rem;
+      background: rgba(30, 41, 59, 0.85);
+      color: #e2e8f0;
+      border: 1px solid #475569;
+      border-radius: var(--radius-md);
+      padding: 0.52rem 0.9rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-header-outline:hover {
+      background: #334155;
+      border-color: #64748b;
+      color: #ffffff;
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #ffffff;
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 0.52rem 0.9rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-subtle);
+      border-color: #94a3b8;
+    }
+
+    /* ==========================================================================
+       MAIN CONTAINER & DATA SOURCE / SCADA BANNER
+       ========================================================================== */
+    .main-container {
+      max-width: 1380px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.35rem 1.5rem 2rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.35rem;
+    }
+
+    .telemetry-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 0.9rem 1.15rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.85rem;
+    }
+
+    .telemetry-info {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.82rem;
+    }
+
+    .source-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.28rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+
+    .source-pill.db-imported {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #a7f3d0;
+    }
+
+    .source-pill.scada-live {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+
+    .telemetry-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    /* ==========================================================================
+       FILTER BAR
+       ========================================================================== */
+    .filter-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.05rem 1.2rem;
+      box-shadow: var(--shadow-sm);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+      gap: 0.9rem;
+      align-items: end;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .filter-group label {
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-secondary);
+    }
+
+    .filter-control {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-strong);
+      background: #ffffff;
+      color: var(--text-primary);
+      font-size: 0.86rem;
+      font-weight: 500;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .filter-control:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .active-filter-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.6rem 0.95rem;
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      color: #0369a1;
+    }
+
+    /* ==========================================================================
+       KPI SUMMARY CARDS
+       ========================================================================== */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.15rem 1.25rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 0.65rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+    }
+
+    .kpi-card.blue::before { background: #2563eb; }
+    .kpi-card.red::before { background: #dc2626; }
+    .kpi-card.amber::before { background: #d97706; }
+    .kpi-card.emerald::before { background: #059669; }
+
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .kpi-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .kpi-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .kpi-value {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      line-height: 1.1;
+    }
+
+    .kpi-meta {
+      font-size: 0.77rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    /* ==========================================================================
+       HOTSPOT FEEDER CARDS
+       ========================================================================== */
+    .hotspot-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.15rem;
+    }
+
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .section-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section-sub {
+      font-size: 0.79rem;
+      color: var(--text-muted);
+    }
+
+    .district-badge {
+      font-size: 0.73rem;
+      font-weight: 700;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      background: var(--accent-blue-soft);
+      color: var(--accent-blue);
+      border: 1px solid #bfdbfe;
+    }
+
+    .village-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.48rem;
+    }
+
+    .village-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.42rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+      font-size: 0.79rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .village-chip:hover {
+      border-color: var(--accent-blue);
+      background: var(--accent-blue-soft);
+      color: var(--accent-blue);
+    }
+
+    .village-chip.selected {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+    }
+
+    .chip-count {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.1rem 0.42rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.08);
+    }
+
+    .village-chip.selected .chip-count {
+      background: rgba(255, 255, 255, 0.22);
+      color: #ffffff;
+    }
+
+    .chip-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    /* ==========================================================================
+       ANALYTICS & SVG CHARTS SECTION
+       ========================================================================== */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 1.15rem;
+    }
+
+    @media (max-width: 960px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.77rem;
+      color: var(--text-secondary);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.38rem;
+      font-weight: 600;
+    }
+
+    .legend-swatch {
+      width: 11px;
+      height: 11px;
+      border-radius: 3px;
+    }
+
+    .svg-chart-wrap {
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .cause-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      margin-top: 0.2rem;
+    }
+
+    .cause-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.32rem;
+    }
+
+    .cause-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .cause-stats {
+      font-size: 0.77rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 9px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.35s ease;
+    }
+
+    /* ==========================================================================
+       LIVE INCIDENT TABLE
+       ========================================================================== */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 920px;
+      font-size: 0.84rem;
+    }
+
+    thead th {
+      background: var(--bg-subtle);
+      color: var(--text-secondary);
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      text-align: left;
+      padding: 0.78rem 0.9rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    tbody td {
+      padding: 0.8rem 0.9rem;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.24rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .status-Active {
+      background: var(--status-active-bg);
+      color: var(--status-active-text);
+      border-color: var(--status-active-border);
+    }
+
+    .status-Dispatched {
+      background: var(--status-dispatched-bg);
+      color: var(--status-dispatched-text);
+      border-color: var(--status-dispatched-border);
+    }
+
+    .status-Resolved {
+      background: var(--status-resolved-bg);
+      color: var(--status-resolved-text);
+      border-color: var(--status-resolved-border);
+    }
+
+    .severity-tag {
+      font-size: 0.73rem;
+      font-weight: 700;
+      padding: 0.16rem 0.5rem;
+      border-radius: 6px;
+    }
+
+    .sev-Critical { background: #fee2e2; color: #b91c1c; }
+    .sev-High { background: #ffedd5; color: #c2410c; }
+    .sev-Moderate { background: #e0f2fe; color: #0369a1; }
+
+    .origin-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.12rem 0.42rem;
+      border-radius: 4px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      display: inline-block;
+      margin-top: 2px;
+    }
+
+    .origin-tag.scada {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+
+    .origin-tag.csv {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #a7f3d0;
+    }
+
+    .action-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .btn-sm {
+      padding: 0.34rem 0.65rem;
+      border-radius: 7px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+
+    .btn-dispatch {
+      background: #fffbeb;
+      color: #b45309;
+      border-color: #fcd34d;
+    }
+
+    .btn-dispatch:hover {
+      background: #fef3c7;
+    }
+
+    .btn-resolve {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #6ee7b7;
+    }
+
+    .btn-resolve:hover {
+      background: #d1fae5;
+    }
+
+    .resolved-note {
+      font-size: 0.76rem;
+      color: #059669;
+      font-weight: 600;
+    }
+
+    /* ==========================================================================
+       MODAL DIALOGS (+ LOG NEW OUTAGE, DATABASE IMPORT, LIVE SCADA)
+       ========================================================================== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.62);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      z-index: 60;
+      overflow-y: auto;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: var(--radius-lg);
+      max-width: 580px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      animation: modalPop 0.18s ease-out;
+      margin: auto;
+    }
+
+    @keyframes modalPop {
+      from { opacity: 0; transform: scale(0.96) translateY(8px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal-header {
+      padding: 1.05rem 1.25rem;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h2 {
+      font-size: 1.02rem;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.35rem;
+      line-height: 1;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.2rem 0.45rem;
+      border-radius: 6px;
+    }
+
+    .modal-close:hover {
+      background: #e2e8f0;
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 1.2rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .modal-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+
+    @media (max-width: 540px) {
+      .modal-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .modal-footer {
+      padding: 0.95rem 1.25rem;
+      background: var(--bg-subtle);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 0.65rem;
+    }
+
+    .dropzone {
+      border: 2px dashed #94a3b8;
+      border-radius: var(--radius-md);
+      padding: 1.35rem 1rem;
+      text-align: center;
+      background: var(--bg-subtle);
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent-blue);
+      background: var(--accent-blue-soft);
+    }
+
+    .validation-box {
+      background: #f8fafc;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 0.8rem 0.95rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .validation-box.success {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #065f46;
+    }
+
+    .validation-box.error {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #991b1b;
+    }
+
+    .diag-terminal {
+      background: #0f172a;
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.74rem;
+      padding: 0.75rem 0.9rem;
+      border-radius: var(--radius-md);
+      max-height: 135px;
+      overflow-y: auto;
+      line-height: 1.45;
+      border: 1px solid #334155;
+    }
+
+    /* ==========================================================================
+       TOAST NOTIFICATION
+       ========================================================================== */
+    .toast {
+      position: fixed;
+      bottom: 1.35rem;
+      right: 1.35rem;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 0.78rem 1.1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.84rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid #334155;
+      z-index: 80;
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: all 0.22s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ==========================================================================
+       ENTERPRISE FOOTER & CREATOR CREDITS
+       ========================================================================== */
+    .dashboard-footer {
+      background: #0f172a;
+      color: #cbd5e1;
+      border-top: 1px solid #334155;
+      margin-top: auto;
+      padding: 1.5rem 1.5rem 1.75rem;
+    }
+
+    .footer-inner {
+      max-width: 1380px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.25rem;
+    }
+
+    .footer-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .footer-brand-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .footer-brand-sub {
+      font-size: 0.77rem;
+      color: #94a3b8;
+    }
+
+    .creators-block {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.45rem;
+    }
+
+    .creators-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+    }
+
+    .creators-list {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .creator-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.42rem;
+      padding: 0.34rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid #334155;
+      color: #f1f5f9;
+      font-size: 0.79rem;
+      font-weight: 600;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+
+    .creator-badge:hover {
+      border-color: #3b82f6;
+      transform: translateY(-1px);
+    }
+
+    .creator-avatar {
+      width: 21px;
+      height: 21px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2563eb, #10b981);
+      color: #ffffff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 860px) {
+      .creators-block {
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       1. TOP HEADER
+       ======================================================================== -->
+  <header class="top-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <div class="header-title-group">
+          <h1>Karnataka Rural Power Outage &amp; Grid Reliability Dashboard</h1>
+          <div class="header-subtitle">
+            <span>CESCOM / CHESCOM Operations (2000–2026 Archive &amp; SCADA)</span>
+            <span>&bull;</span>
+            <span>CESC Rural Distribution Circles — Mandya, Mysuru, Chamarajanagar, Kodagu &amp; Hassan</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="live-badge" id="headerConnectionBadge" title="Historical Archive &amp; SCADA Telemetry Status">
+          <span class="pulse-dot"></span>
+          <span id="headerConnectionText">CESCOM Archive Ready</span>
+        </div>
+
+        <button type="button" class="btn-header-outline" id="openImportModalBtn" title="Import CESCOM CSV or JSON Database Export">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          Import CESCOM DB
+        </button>
+
+        <button type="button" class="btn-header-outline" id="openScadaModalBtn" title="Connect Live SCADA / REST / WebSocket Endpoint">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="2"></circle>
+            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+          </svg>
+          Live SCADA Feed
+        </button>
+
+        <button type="button" class="btn-primary" id="openModalBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          + Log New Outage
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       MAIN DASHBOARD WORKSPACE
+       ======================================================================== -->
+  <main class="main-container">
+
+    <!-- DATA INGESTION & LIVE SCADA TELEMETRY STATUS BAR -->
+    <section class="telemetry-bar" aria-label="CESCOM Data Source and SCADA Telemetry Status">
+      <div class="telemetry-info">
+        <span class="source-pill" id="activeSourceBadge">Source: Built-in CESCOM 2000–2026 Archive</span>
+        <span id="telemetryMetricsText" style="color: var(--text-secondary);">
+          <strong>536</strong> verified records loaded &bull; Ready for CSV/JSON database import or live SCADA stream
+        </span>
+      </div>
+      <div class="telemetry-actions">
+        <button type="button" class="btn-secondary" id="quickSimScadaBtn" title="Toggle Simulated Live CESCOM SCADA Stream">
+          Start Live SCADA Simulation
+        </button>
+        <button type="button" class="btn-secondary" id="downloadTemplateBtn" title="Download Sample CESCOM Database Export CSV">
+          Download Sample CESCOM CSV
+        </button>
+        <button type="button" class="btn-secondary" id="exportCurrentCsvBtn" title="Export Currently Filtered Records to CSV">
+          Export Filtered CSV
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. HISTORICAL YEAR / MONTH / DATE & DISTRICT FILTERS -->
+    <section class="filter-panel" aria-label="Outage Filters">
+      <div class="filter-group">
+        <label for="yearFilter">Select Year (2000–2026)</label>
+        <select id="yearFilter" class="filter-control">
+          <option value="All">All Years (2000–2026)</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="monthFilter">Select Month</label>
+        <select id="monthFilter" class="filter-control">
+          <option value="All">All Months (Jan–Dec)</option>
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="dateFilter">Select Date (1–31)</label>
+        <select id="dateFilter" class="filter-control">
+          <option value="All">All Dates in Month</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="districtFilter">District Circle</label>
+        <select id="districtFilter" class="filter-control">
+          <option value="All">All Districts (5 Districts)</option>
+          <option value="Mandya">Mandya</option>
+          <option value="Mysore (Mysuru)">Mysore (Mysuru)</option>
+          <option value="Chamarajanagar">Chamarajanagar</option>
+          <option value="Kodagu">Kodagu</option>
+          <option value="Hassan">Hassan</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="villageFilter">Rural Village / Taluk</label>
+        <select id="villageFilter" class="filter-control">
+          <option value="All">All Villages (50 Monitored)</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="statusFilter">Outage Status</label>
+        <select id="statusFilter" class="filter-control">
+          <option value="All">All Statuses</option>
+          <option value="Active">Active</option>
+          <option value="Dispatched">Dispatched</option>
+          <option value="Resolved">Resolved</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="searchInput">Search Feeder / ID / Cause</label>
+        <input type="text" id="searchInput" class="filter-control" placeholder="e.g. Maddur, 11kV, Overload..." />
+      </div>
+
+      <div class="filter-actions">
+        <button type="button" class="btn-secondary" id="resetFiltersBtn" style="width: 100%; justify-content: center;">
+          Reset Filters
+        </button>
+      </div>
+    </section>
+
+    <div class="active-filter-strip" id="activeFilterSummary">
+      <span>Showing telemetry across <strong>2000–2026 Archive</strong> &bull; <strong>All Districts</strong></span>
+      <span id="lastUpdatedLabel">Archive Synced</span>
+    </div>
+
+    <!-- 3. DYNAMIC KPI SUMMARY CARDS -->
+    <section class="kpi-grid" aria-label="Key Performance Indicators">
+      <article class="kpi-card blue">
+        <div class="kpi-top">
+          <span class="kpi-label">Total Incidents</span>
+          <div class="kpi-icon" style="background: #eff6ff; color: #2563eb;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+          </div>
+        </div>
+        <div class="kpi-value" id="kpiTotal">0</div>
+        <div class="kpi-meta" id="kpiTotalSub">Logged across selected timeline</div>
+      </article>
+
+      <article class="kpi-card red">
+        <div class="kpi-top">
+          <span class="kpi-label">Active / Unresolved</span>
+          <div class="kpi-icon" style="background: #fef2f2; color: #dc2626;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+        </div>
+        <div class="kpi-value" id="kpiActive" style="color: #dc2626;">0</div>
+        <div class="kpi-meta" id="kpiActiveSub">Unresolved in selection</div>
+      </article>
+
+      <article class="kpi-card amber">
+        <div class="kpi-top">
+          <span class="kpi-label">Avg Restoration Time</span>
+          <div class="kpi-icon" style="background: #fffbeb; color: #d97706;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+        </div>
+        <div class="kpi-value" id="kpiAvgTime">0 <span style="font-size: 1rem; font-weight: 600; color: #64748b;">mins</span></div>
+        <div class="kpi-meta">Target SLA: &le; 90 mins rural response</div>
+      </article>
+
+      <article class="kpi-card emerald">
+        <div class="kpi-top">
+          <span class="kpi-label">Affected Households</span>
+          <div class="kpi-icon" style="background: #ecfdf5; color: #059669;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+          </div>
+        </div>
+        <div class="kpi-value" id="kpiHouseholds">0</div>
+        <div class="kpi-meta" id="kpiHouseholdsSub">Rural domestic &amp; IP-set connections</div>
+      </article>
+    </section>
+
+    <!-- CALCULATED OUTAGE RISK & RELIABILITY METRICS -->
+    <section class="section-card" id="calculatedReliability" style="margin:24px 0;padding:22px;border:1px solid #dbe5f0;border-radius:16px;background:#fff;">
+      <div class="section-header"><div><h2 class="section-title">Calculated Outage Risk &amp; Grid Reliability</h2>
+      <p class="section-sub">Automatically recalculated for the selected district, village, year, month and date</p></div><span class="district-badge">Live calculation</span></div>
+      <div id="reliabilityMetrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:18px;"></div>
+      <p style="margin:16px 0 0;color:#64748b;font-size:12px;line-height:1.6">N = number of outage incidents; T = total outage duration in hours; Ttotal = total calendar hours in the selected date range. Metrics use the currently filtered outage records.</p>
+    </section>
+
+    <!-- 4. INTERACTIVE HOTSPOT FEEDER CARDS — ALL FIVE DISTRICTS -->
+    <section class="hotspot-grid" id="districtHotspotGrid" aria-label="District Hotspot Feeders"></section>
+
+    <!-- 5. INLINE SVG CHARTS: HISTORICAL TREND & ROOT CAUSE BREAKDOWN -->
+    <section class="charts-grid" aria-label="Analytics and Root Cause Breakdown">
+      <article class="section-card">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Historical Outage Frequency &amp; Risk Trend</h2>
+            <p class="section-sub">Outage incidents vs. monsoon/grid risk index for selected period</p>
+          </div>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-swatch" style="background: #2563eb;"></span>Outage Incidents</span>
+            <span class="legend-item"><span class="legend-swatch" style="background: #f59e0b; border-radius: 50%;"></span>Risk Index (%)</span>
+          </div>
+        </div>
+        <div class="svg-chart-wrap" id="trendChartContainer"></div>
+      </article>
+
+      <article class="section-card">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Root Cause Breakdown</h2>
+            <p class="section-sub">Distribution by fault classification</p>
+          </div>
+        </div>
+        <div class="cause-list" id="rootCauseContainer"></div>
+      </article>
+    </section>
+
+    <!-- 6. LIVE OUTAGE INCIDENT TABLE -->
+    <section class="section-card" aria-label="Live Outage Incident Log">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Outage Incident &amp; Field Crew Dispatch Log</h2>
+          <p class="section-sub">Inspect, dispatch linemen crews or mark faults restored across archive, imported DB, or live SCADA records</p>
+        </div>
+        <span class="district-badge" id="tableCountBadge">0 Incidents</span>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Incident ID</th>
+              <th>Date &amp; Time</th>
+              <th>District &amp; Village</th>
+              <th>11kV / 66kV Feeder</th>
+              <th>Root Cause</th>
+              <th>Severity</th>
+              <th>Affected Homes</th>
+              <th>Duration</th>
+              <th>Status</th>
+              <th>Crew Action</th>
+            </tr>
+          </thead>
+          <tbody id="incidentTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================
+       7A. CESCOM DATABASE IMPORT MODAL (CSV / JSON)
+       ======================================================================== -->
+  <div class="modal-backdrop" id="importDbModal" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="importModalTitle">Import CESCOM / CHESCOM Database Export (CSV / JSON)</h2>
+        <button type="button" class="modal-close" id="closeImportModalBtn" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p style="font-size: 0.82rem; color: var(--text-secondary);">
+          Upload an official CESCOM Outage Management System (OMS) export file in <strong>.CSV</strong> or <strong>.JSON</strong> format. Columns are automatically mapped (<code>incident_id</code>, <code>date</code>/<code>timestamp</code>, <code>district</code>, <code>village</code>, <code>feeder</code>, <code>cause</code>, <code>severity</code>, <code>households</code>, <code>duration</code>, <code>status</code>).
+        </p>
+
+        <div class="dropzone" id="csvDropzone" tabindex="0">
+          <input type="file" id="dbFileInput" accept=".csv,.json,text/csv,application/json" style="display: none;" />
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" style="margin: 0 auto 0.4rem;">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-primary);">
+            Click to select CESCOM .CSV or .JSON file, or drag &amp; drop here
+          </div>
+          <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Supports Mandya, Mysuru, Chamarajanagar, Kodagu &amp; Hassan circle exports
+          </div>
+        </div>
+
+        <div class="modal-row">
+          <div class="filter-group">
+            <label for="importModeSelect">Import Merge Strategy</label>
+            <select id="importModeSelect" class="filter-control">
+              <option value="merge">Merge &amp; Deduplicate by Incident ID</option>
+              <option value="replace">Replace Current Dataset Completely</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>&nbsp;</label>
+            <button type="button" class="btn-secondary" id="modalDownloadSampleBtn" style="width: 100%; justify-content: center;">
+              Download Sample CESCOM CSV
+            </button>
+          </div>
+        </div>
+
+        <div class="validation-box" id="importValidationBox">
+          <strong>Schema Validator Idle:</strong> Select a CESCOM CSV/JSON export to inspect column mapping and record counts before importing.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="restoreDefaultArchiveBtn" style="margin-right: auto;">
+          Restore Default Archive
+        </button>
+        <button type="button" class="btn-secondary" id="cancelImportModalBtn">Cancel</button>
+        <button type="button" class="btn-primary" id="confirmImportBtn" disabled>Apply Imported Records</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       7B. LIVE SCADA / REST / WEBSOCKET CONNECTION MODAL
+       ======================================================================== -->
+  <div class="modal-backdrop" id="scadaModal" role="dialog" aria-modal="true" aria-labelledby="scadaModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="scadaModalTitle">Live CESCOM SCADA / Telemetry Endpoint Connector</h2>
+        <button type="button" class="modal-close" id="closeScadaModalBtn" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-row">
+          <div class="filter-group">
+            <label for="scadaProtocol">Telemetry Transport Protocol</label>
+            <select id="scadaProtocol" class="filter-control">
+              <option value="sim">Simulated CESCOM SCADA Stream (Built-in Demo)</option>
+              <option value="rest">Live REST API Polling (HTTPS JSON)</option>
+              <option value="ws">Live WebSocket Stream (WS / WSS)</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="scadaPollInterval">Polling / Stream Interval</label>
+            <select id="scadaPollInterval" class="filter-control">
+              <option value="3000">Every 3 Seconds (High-Frequency)</option>
+              <option value="5000" selected>Every 5 Seconds (Standard SCADA)</option>
+              <option value="15000">Every 15 Seconds</option>
+              <option value="30000">Every 30 Seconds</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-group" id="scadaUrlGroup">
+          <label for="scadaEndpointUrl">SCADA Gateway / OMS API Endpoint URL</label>
+          <input type="text" id="scadaEndpointUrl" class="filter-control" placeholder="https://scada.cescom.karnataka.gov.in/api/v1/outages" value="https://scada.cescom.karnataka.gov.in/api/v1/outages" />
+        </div>
+
+        <div class="filter-group" id="scadaTokenGroup">
+          <label for="scadaAuthToken">Bearer Token / Substation API Key (Optional)</label>
+          <input type="password" id="scadaAuthToken" class="filter-control" placeholder="Bearer eyJhbGciOiJIUzI1NiIs..." />
+        </div>
+
+        <div class="filter-group">
+          <label>Connection Diagnostics &amp; Packet Log</label>
+          <div class="diag-terminal" id="scadaDiagLog">
+            [SCADA-INIT] Telemetry client ready. Select protocol and click Connect.
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="disconnectScadaBtn" style="margin-right: auto;">
+          Disconnect Stream
+        </button>
+        <button type="button" class="btn-secondary" id="cancelScadaModalBtn">Close</button>
+        <button type="button" class="btn-primary" id="connectScadaBtn">Connect Live Stream</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       7C. + LOG NEW OUTAGE MODAL DIALOG
+       ======================================================================== -->
+  <div class="modal-backdrop" id="outageModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modalTitle">Log New Rural Power Outage</h2>
+        <button type="button" class="modal-close" id="closeModalBtn" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="newOutageForm">
+        <div class="modal-body">
+          <div class="modal-row">
+            <div class="filter-group">
+              <label for="modalYear">Year</label>
+              <select id="modalYear" class="filter-control" required></select>
+            </div>
+            <div class="filter-group">
+              <label for="modalMonth">Month</label>
+              <select id="modalMonth" class="filter-control" required>
+                <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+                <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+                <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+                <option value="10">October</option><option value="11" selected>November</option><option value="12">December</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-row">
+            <div class="filter-group">
+              <label for="modalDateNum">Date (1–31)</label>
+              <input type="number" id="modalDateNum" class="filter-control" min="1" max="31" value="20" required />
+            </div>
+            <div class="filter-group">
+              <label for="modalDistrict">District</label>
+              <select id="modalDistrict" class="filter-control" required>
+                <option value="Mandya">Mandya</option>
+                <option value="Mysore (Mysuru)">Mysore (Mysuru)</option>
+                <option value="Chamarajanagar">Chamarajanagar</option>
+                <option value="Kodagu">Kodagu</option>
+                <option value="Hassan">Hassan</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-row">
+            <div class="filter-group">
+              <label for="modalVillage">Village</label>
+              <select id="modalVillage" class="filter-control" required></select>
+            </div>
+            <div class="filter-group">
+              <label for="modalSeverity">Severity</label>
+              <select id="modalSeverity" class="filter-control" required>
+                <option value="Critical">Critical</option>
+                <option value="High" selected>High</option>
+                <option value="Moderate">Moderate</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <label for="modalFeeder">Feeder / Substation Name</label>
+            <input type="text" id="modalFeeder" class="filter-control" placeholder="e.g. 11kV Maddur Rural Feeder" required />
+          </div>
+
+          <div class="modal-row">
+            <div class="filter-group">
+              <label for="modalCause">Root Cause</label>
+              <select id="modalCause" class="filter-control" required>
+                <option value="Transformer Overload">Transformer Overload</option>
+                <option value="Tree/Branch Fall">Tree/Branch Fall</option>
+                <option value="Feeder Line Fault">Feeder Line Fault</option>
+                <option value="Monsoon Surge">Monsoon Surge</option>
+                <option value="Planned Maintenance">Planned Maintenance</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="modalHouseholds">Affected Households</label>
+              <input type="number" id="modalHouseholds" class="filter-control" min="15" max="15000" value="420" required />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="cancelModalBtn">Cancel</button>
+          <button type="submit" class="btn-primary">Submit Outage Report</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastBanner" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- ========================================================================
+       8. ENTERPRISE DASHBOARD FOOTER WITH CREATOR CREDITS
+       ======================================================================== -->
+  <footer class="dashboard-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="footer-brand-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          Karnataka Rural Grid Operations &bull; CESCOM / CHESCOM Monitoring Portal (2000–2026)
+        </div>
+        <div class="footer-brand-sub">
+          Mandya, Mysuru, Chamarajanagar, Kodagu &amp; Hassan 11kV / 66kV Feeder Telemetry &amp; Outage Management System &bull; &copy; 2026
+        </div>
+      </div>
+
+      <div class="creators-block">
+        <span class="creators-label">Designed &amp; Developed By</span>
+        <div class="creators-list" aria-label="Project Creators">
+          <span class="creator-badge"><span class="creator-avatar">GR</span>Gahana Ravi</span>
+          <span class="creator-badge"><span class="creator-avatar">MP</span>Monisha N Patel</span>
+          <span class="creator-badge"><span class="creator-avatar">DR</span>Disha S B Raj</span>
+          <span class="creator-badge"><span class="creator-avatar">DV</span>Divya</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================
+       SELF-CONTAINED APPLICATION LOGIC (CESCOM DB IMPORT + LIVE SCADA + ARCHIVE)
+       ======================================================================== -->
+  <script>
+    (function () {
+      "use strict";
+
+      /* ----------------------------------------------------------------------
+         1. DISTRICT & VILLAGE MASTER DATA
+         ---------------------------------------------------------------------- */
+      const DISTRICT_VILLAGES = {
+        "Mandya": [
+          "Maddur", "Pandavapura", "Srirangapatna", "Malavalli", "Nagamangala",
+          "K.R. Pet", "Kirugavalu", "Besagarahalli", "Koppa", "Keragodu"
+        ],
+        "Mysore (Mysuru)": [
+          "Nanjangud", "T. Narasipura", "Hunsur", "Periyapatna", "K.R. Nagar",
+          "H.D. Kote", "Bannur", "Saligrama", "Bilikere", "Jayapura"
+        ],
+        "Chamarajanagar": [
+          "Chamarajanagar", "Gundlupet", "Kollegal", "Yelandur", "Hanur",
+          "Santemarahalli", "Harave", "Terakanambi", "Begur", "Kuderu"
+        ],
+        "Kodagu": [
+          "Madikeri", "Somwarpet", "Virajpet", "Kushalnagar", "Gonikoppal",
+          "Napoklu", "Siddapur", "Ponnampet", "Bhagamandala", "Murnad"
+        ],
+        "Hassan": [
+          "Hassan", "Arsikere", "Belur", "Channarayapatna", "Holenarasipura",
+          "Sakleshpur", "Alur", "Arkalgud", "Banavara", "Shantigrama"
+        ]
+      };
+
+      const ROOT_CAUSES = [
+        { name: "Transformer Overload", color: "#ef4444" },
+        { name: "Tree/Branch Fall", color: "#f59e0b" },
+        { name: "Feeder Line Fault", color: "#3b82f6" },
+        { name: "Monsoon Surge", color: "#8b5cf6" },
+        { name: "Planned Maintenance", color: "#10b981" }
+      ];
+
+      /* ----------------------------------------------------------------------
+         2. DOM ELEMENT REFERENCES
+         ---------------------------------------------------------------------- */
+      const el = {
+        yearFilter: document.getElementById("yearFilter"),
+        monthFilter: document.getElementById("monthFilter"),
+        dateFilter: document.getElementById("dateFilter"),
+        districtFilter: document.getElementById("districtFilter"),
+        villageFilter: document.getElementById("villageFilter"),
+        statusFilter: document.getElementById("statusFilter"),
+        searchInput: document.getElementById("searchInput"),
+        resetFiltersBtn: document.getElementById("resetFiltersBtn"),
+        activeFilterSummary: document.getElementById("activeFilterSummary"),
+        lastUpdatedLabel: document.getElementById("lastUpdatedLabel"),
+
+        headerConnectionBadge: document.getElementById("headerConnectionBadge"),
+        headerConnectionText: document.getElementById("headerConnectionText"),
+        activeSourceBadge: document.getElementById("activeSourceBadge"),
+        telemetryMetricsText: document.getElementById("telemetryMetricsText"),
+        quickSimScadaBtn: document.getElementById("quickSimScadaBtn"),
+        downloadTemplateBtn: document.getElementById("downloadTemplateBtn"),
+        exportCurrentCsvBtn: document.getElementById("exportCurrentCsvBtn"),
+
+        kpiTotal: document.getElementById("kpiTotal"),
+        kpiTotalSub: document.getElementById("kpiTotalSub"),
+        kpiActive: document.getElementById("kpiActive"),
+        kpiActiveSub: document.getElementById("kpiActiveSub"),
+        kpiAvgTime: document.getElementById("kpiAvgTime"),
+        kpiHouseholds: document.getElementById("kpiHouseholds"),
+        kpiHouseholdsSub: document.getElementById("kpiHouseholdsSub"),
+
+        districtHotspotGrid: document.getElementById("districtHotspotGrid"),
+        trendChartContainer: document.getElementById("trendChartContainer"),
+        rootCauseContainer: document.getElementById("rootCauseContainer"),
+
+        incidentTableBody: document.getElementById("incidentTableBody"),
+        tableCountBadge: document.getElementById("tableCountBadge"),
+
+        /* Log Outage Modal */
+        openModalBtn: document.getElementById("openModalBtn"),
+        closeModalBtn: document.getElementById("closeModalBtn"),
+        cancelModalBtn: document.getElementById("cancelModalBtn"),
+        outageModal: document.getElementById("outageModal"),
+        newOutageForm: document.getElementById("newOutageForm"),
+        modalYear: document.getElementById("modalYear"),
+        modalMonth: document.getElementById("modalMonth"),
+        modalDateNum: document.getElementById("modalDateNum"),
+        modalDistrict: document.getElementById("modalDistrict"),
+        modalVillage: document.getElementById("modalVillage"),
+        modalFeeder: document.getElementById("modalFeeder"),
+        modalCause: document.getElementById("modalCause"),
+        modalSeverity: document.getElementById("modalSeverity"),
+        modalHouseholds: document.getElementById("modalHouseholds"),
+
+        /* Import DB Modal */
+        openImportModalBtn: document.getElementById("openImportModalBtn"),
+        closeImportModalBtn: document.getElementById("closeImportModalBtn"),
+        cancelImportModalBtn: document.getElementById("cancelImportModalBtn"),
+        importDbModal: document.getElementById("importDbModal"),
+        csvDropzone: document.getElementById("csvDropzone"),
+        dbFileInput: document.getElementById("dbFileInput"),
+        importModeSelect: document.getElementById("importModeSelect"),
+        modalDownloadSampleBtn: document.getElementById("modalDownloadSampleBtn"),
+        importValidationBox: document.getElementById("importValidationBox"),
+        restoreDefaultArchiveBtn: document.getElementById("restoreDefaultArchiveBtn"),
+        confirmImportBtn: document.getElementById("confirmImportBtn"),
+
+        /* Live SCADA Modal */
+        openScadaModalBtn: document.getElementById("openScadaModalBtn"),
+        closeScadaModalBtn: document.getElementById("closeScadaModalBtn"),
+        cancelScadaModalBtn: document.getElementById("cancelScadaModalBtn"),
+        scadaModal: document.getElementById("scadaModal"),
+        scadaProtocol: document.getElementById("scadaProtocol"),
+        scadaPollInterval: document.getElementById("scadaPollInterval"),
+        scadaEndpointUrl: document.getElementById("scadaEndpointUrl"),
+        scadaAuthToken: document.getElementById("scadaAuthToken"),
+        scadaDiagLog: document.getElementById("scadaDiagLog"),
+        disconnectScadaBtn: document.getElementById("disconnectScadaBtn"),
+        connectScadaBtn: document.getElementById("connectScadaBtn"),
+
+        toastBanner: document.getElementById("toastBanner")
+      };
+
+      /* ----------------------------------------------------------------------
+         3. APPLICATION STATE & TELEMETRY CONTROLLERS
+         ---------------------------------------------------------------------- */
+      let incidents = [];
+      let pendingImportedRecords = [];
+      let activeDataSourceLabel = "Built-in CESCOM 2000–2026 Archive";
+      let activeDataSourceType = "archive"; // "archive" | "csv" | "scada"
+
+      const scadaState = {
+        active: false,
+        mode: null, // "sim" | "rest" | "ws"
+        timerId: null,
+        ws: null,
+        packetsReceived: 0
+      };
+
+      const state = {
+        year: "All",
+        month: "All",
+        date: "All",
+        district: "All",
+        village: "All",
+        status: "All",
+        search: ""
+      };
+
+      function initYearDropdowns() {
+        el.yearFilter.innerHTML = '<option value="All">All Years (2000–2026)</option>';
+        el.modalYear.innerHTML = '';
+        for (let y = 2026; y >= 2000; y--) {
+          const opt = document.createElement("option");
+          opt.value = y;
+          opt.textContent = y;
+          el.yearFilter.appendChild(opt);
+
+          const optModal = document.createElement("option");
+          optModal.value = y;
+          optModal.textContent = y;
+          if (y === 2026) optModal.selected = true;
+          el.modalYear.appendChild(optModal);
+        }
+      }
+
+      function updateDateDropdown(year, month, dateSelectElem) {
+        const currentVal = dateSelectElem.value;
+        dateSelectElem.innerHTML = '<option value="All">All Dates in Month</option>';
+
+        let maxDays = 31;
+        if (month !== "All") {
+          const m = parseInt(month, 10);
+          const y = year !== "All" ? parseInt(year, 10) : 2026;
+          if (m === 2) {
+            maxDays = (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28;
+          } else if ([4, 6, 9, 11].includes(m)) {
+            maxDays = 30;
+          }
+        }
+
+        for (let d = 1; d <= maxDays; d++) {
+          const opt = document.createElement("option");
+          opt.value = d;
+          opt.textContent = d < 10 ? `0${d}` : d;
+          dateSelectElem.appendChild(opt);
+        }
+        if (Array.from(dateSelectElem.options).some(o => o.value === currentVal)) {
+          dateSelectElem.value = currentVal;
+        } else {
+          dateSelectElem.value = "All";
+        }
+      }
+
+      /* ----------------------------------------------------------------------
+         4. BUILT-IN CESCOM HISTORIC ARCHIVE GENERATOR (2000–2026)
+         ---------------------------------------------------------------------- */
+      function generateArchiveData() {
+        const districts = Object.keys(DISTRICT_VILLAGES);
+        const causes = ROOT_CAUSES.map(c => c.name);
+        const severities = ["Critical", "High", "Moderate"];
+        const statuses = ["Resolved", "Resolved", "Resolved", "Resolved", "Active", "Dispatched"];
+
+        const generated = [];
+        let idCounter = 1001;
+
+        for (let year = 2000; year <= 2026; year++) {
+          const countPerYear = year >= 2024 ? 35 : year >= 2015 ? 20 : 12;
+
+          for (let i = 0; i < countPerYear; i++) {
+            const district = districts[(idCounter + i) % districts.length];
+            const villageList = DISTRICT_VILLAGES[district];
+            const village = villageList[(idCounter * 3 + i) % villageList.length];
+            const month = ((i * 3) % 12) + 1;
+            const date = ((i * 7) % 28) + 1;
+            const hour = (i + 6) % 24;
+            const minute = (i * 13) % 60;
+            const timeStr = `${hour < 10 ? '0'+hour : hour}:${minute < 10 ? '0'+minute : minute} ${hour >= 12 ? 'PM' : 'AM'}`;
+
+            let status = (year === 2026 && month === 11 && date >= 19) ? statuses[i % statuses.length] : "Resolved";
+
+            generated.push({
+              id: `CES-${idCounter++}`,
+              year: year,
+              month: month,
+              date: date,
+              district: district,
+              village: village,
+              feeder: `11kV ${village} Feeder F-${(i % 5) + 1}`,
+              cause: causes[(i + year) % causes.length],
+              severity: severities[i % severities.length],
+              households: 150 + ((i * 47) % 950),
+              durationMins: 30 + ((i * 19) % 120),
+              status: status,
+              reportedAt: `${date < 10 ? '0'+date : date}/${month < 10 ? '0'+month : month}/${year} at ${timeStr}`,
+              origin: "Archive"
+            });
+          }
+        }
+        return generated;
+      }
+
+      /* ----------------------------------------------------------------------
+         5. CESCOM SCHEMA NORMALIZER, CSV/JSON PARSER & SAMPLE GENERATOR
+         ---------------------------------------------------------------------- */
+      function normalizeDistrictName(rawDistrict) {
+        if (!rawDistrict) return "Mandya";
+        const val = String(rawDistrict).trim().toLowerCase();
+        if (val.includes("mandya")) return "Mandya";
+        if (val.includes("mysor") || val.includes("mysur")) return "Mysore (Mysuru)";
+        if (val.includes("chamaraj")) return "Chamarajanagar";
+        if (val.includes("kodagu") || val.includes("coorg")) return "Kodagu";
+        if (val.includes("hassan")) return "Hassan";
+        return "Mandya";
+      }
+
+      function normalizeStatus(rawStatus) {
+        if (!rawStatus) return "Active";
+        const val = String(rawStatus).trim().toLowerCase();
+        if (val.includes("resolv") || val.includes("restor") || val.includes("clos")) return "Resolved";
+        if (val.includes("dispatch") || val.includes("crew") || val.includes("assign")) return "Dispatched";
+        return "Active";
+      }
+
+      function normalizeSeverity(rawSeverity) {
+        if (!rawSeverity) return "High";
+        const val = String(rawSeverity).trim().toLowerCase();
+        if (val.includes("crit") || val.includes("sev") || val === "1") return "Critical";
+        if (val.includes("mod") || val.includes("low") || val === "3") return "Moderate";
+        return "High";
+      }
+
+      function normalizeCause(rawCause) {
+        if (!rawCause) return "Feeder Line Fault";
+        const val = String(rawCause).trim().toLowerCase();
+        if (val.includes("overload") || val.includes("transformer") || val.includes("dtr")) return "Transformer Overload";
+        if (val.includes("tree") || val.includes("branch") || val.includes("veg")) return "Tree/Branch Fall";
+        if (val.includes("monsoon") || val.includes("rain") || val.includes("surge") || val.includes("lightn")) return "Monsoon Surge";
+        if (val.includes("maint") || val.includes("plan") || val.includes("shut")) return "Planned Maintenance";
+        return "Feeder Line Fault";
+      }
+
+      function parseDateFields(rawRecord) {
+        let year = parseInt(rawRecord.year, 10);
+        let month = parseInt(rawRecord.month, 10);
+        let date = parseInt(rawRecord.date || rawRecord.day, 10);
+        let reportedAt = rawRecord.reportedAt || rawRecord.reported_at || rawRecord.timestamp || "";
+
+        if ((!year || !month || !date) && reportedAt) {
+          const isoMatch = String(reportedAt).match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+          const dmyMatch = String(reportedAt).match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+          if (isoMatch) {
+            year = parseInt(isoMatch[1], 10);
+            month = parseInt(isoMatch[2], 10);
+            date = parseInt(isoMatch[3], 10);
+          } else if (dmyMatch) {
+            date = parseInt(dmyMatch[1], 10);
+            month = parseInt(dmyMatch[2], 10);
+            year = parseInt(dmyMatch[3], 10);
+          }
+        }
+
+        if (!year || year < 2000 || year > 2026) year = 2026;
+        if (!month || month < 1 || month > 12) month = 11;
+        if (!date || date < 1 || date > 31) date = 20;
+
+        if (!reportedAt) {
+          reportedAt = `${date < 10 ? '0'+date : date}/${month < 10 ? '0'+month : month}/${year} at 11:30 AM`;
+        }
+
+        return { year, month, date, reportedAt };
+      }
+
+      function normalizeCescomRecord(rawObj, index, originTag) {
+        const lowerMap = {};
+        Object.keys(rawObj || {}).forEach((k) => {
+          lowerMap[k.trim().toLowerCase().replace(/[\s_-]+/g, "_")] = rawObj[k];
+        });
+
+        const district = normalizeDistrictName(
+          lowerMap.district || lowerMap.circle || lowerMap.district_circle
+        );
+        const villagePool = DISTRICT_VILLAGES[district];
+        let village = String(lowerMap.village || lowerMap.taluk || lowerMap.substation || "").trim();
+        if (!village) {
+          village = villagePool[index % villagePool.length];
+        } else {
+          const matchedVillage = villagePool.find(v => v.toLowerCase() === village.toLowerCase());
+          if (matchedVillage) village = matchedVillage;
+        }
+
+        const parsedDates = parseDateFields({
+          year: lowerMap.year,
+          month: lowerMap.month,
+          date: lowerMap.date || lowerMap.day,
+          reportedAt: lowerMap.reportedat || lowerMap.reported_at || lowerMap.timestamp || lowerMap.datetime
+        });
+
+        const rawId = lowerMap.id || lowerMap.incident_id || lowerMap.outage_id || lowerMap.ticket_id;
+        const id = rawId ? String(rawId).trim() : `CES-IMP-${5000 + index}`;
+
+        const feeder = String(
+          lowerMap.feeder || lowerMap.feeder_name || lowerMap.line || `11kV ${village} Rural Feeder`
+        ).trim();
+
+        const households = Math.max(
+          10,
+          parseInt(lowerMap.households || lowerMap.affected_households || lowerMap.consumers || 280, 10) || 280
+        );
+
+        const durationMins = Math.max(
+          5,
+          parseInt(lowerMap.durationmins || lowerMap.duration_mins || lowerMap.duration || lowerMap.restoration_time || 55, 10) || 55
+        );
+
+        return {
+          id,
+          year: parsedDates.year,
+          month: parsedDates.month,
+          date: parsedDates.date,
+          district,
+          village,
+          feeder,
+          cause: normalizeCause(lowerMap.cause || lowerMap.root_cause || lowerMap.fault_type),
+          severity: normalizeSeverity(lowerMap.severity || lowerMap.priority),
+          households,
+          durationMins,
+          status: normalizeStatus(lowerMap.status || lowerMap.state),
+          reportedAt: parsedDates.reportedAt,
+          origin: originTag || "CESCOM DB"
+        };
+      }
+
+      function parseCsvText(text) {
+        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+        if (lines.length < 2) throw new Error("CSV file must contain a header row and at least one data row.");
+
+        function splitCsvLine(line) {
+          const result = [];
+          let current = "";
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+              inQuotes = !inQuotes;
+            } else if (ch === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = "";
+            } else {
+              current += ch;
+            }
+          }
+          result.push(current.trim());
+          return result;
+        }
+
+        const headers = splitCsvLine(lines[0]);
+        const records = [];
+        for (let i = 1; i < lines.length; i++) {
+          const vals = splitCsvLine(lines[i]);
+          if (vals.length === 1 && vals[0] === "") continue;
+          const obj = {};
+          headers.forEach((h, idx) => {
+            obj[h] = vals[idx] !== undefined ? vals[idx] : "";
+          });
+          records.push(normalizeCescomRecord(obj, i, "CESCOM DB"));
+        }
+        return records;
+      }
+
+      function parseUploadedFile(file) {
+        const reader = new FileReader();
+        reader.onload = function (evt) {
+          try {
+            const content = String(evt.target.result || "");
+            let parsed = [];
+            if (file.name.toLowerCase().endsWith(".json") || content.trim().startsWith("[") || content.trim().startsWith("{")) {
+              const json = JSON.parse(content);
+              const arr = Array.isArray(json) ? json : (json.records || json.outages || json.data || []);
+              if (!Array.isArray(arr) || arr.length === 0) {
+                throw new Error("JSON must contain an array of outage records.");
+              }
+              parsed = arr.map((item, idx) => normalizeCescomRecord(item, idx, "CESCOM DB"));
+            } else {
+              parsed = parseCsvText(content);
+            }
+
+            pendingImportedRecords = parsed;
+            const districtsFound = [...new Set(parsed.map(r => r.district))].join(", ");
+            el.importValidationBox.className = "validation-box success";
+            el.importValidationBox.innerHTML = `
+              <div><strong>&#10003; Schema Validated:</strong> ${parsed.length} CESCOM outage records parsed from <code>${file.name}</code>.</div>
+              <div><strong>Circles Detected:</strong> ${districtsFound}</div>
+              <div><strong>Sample Mapped Row:</strong> ${parsed[0].id} &bull; ${parsed[0].village} (${parsed[0].district}) &bull; ${parsed[0].feeder} &bull; ${parsed[0].status}</div>
+            `;
+            el.confirmImportBtn.disabled = false;
+          } catch (err) {
+            pendingImportedRecords = [];
+            el.confirmImportBtn.disabled = true;
+            el.importValidationBox.className = "validation-box error";
+            el.importValidationBox.innerHTML = `<strong>Validation Error:</strong> ${err.message}`;
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      function downloadSampleCescomCsv() {
+        const csvLines = [
+          "incident_id,timestamp,district,village,feeder,root_cause,severity,affected_households,duration_mins,status",
+          "CES-DB-9001,2026-11-20 09:15 AM,Mandya,Maddur,11kV Maddur Town Feeder F-1,Transformer Overload,Critical,840,65,Active",
+          "CES-DB-9002,2026-11-20 10:05 AM,Mysore (Mysuru),Nanjangud,11kV Nanjangud Industrial F-3,Feeder Line Fault,High,620,48,Dispatched",
+          "CES-DB-9003,2026-11-19 04:40 PM,Chamarajanagar,Gundlupet,66kV Gundlupet Rural Express,Tree/Branch Fall,High,510,82,Resolved",
+          "CES-DB-9004,2026-11-20 11:20 AM,Kodagu,Virajpet,11kV Virajpet Estate Feeder F-2,Monsoon Surge,Critical,730,74,Active",
+          "CES-DB-9005,2026-11-20 08:50 AM,Hassan,Sakleshpur,11kV Sakleshpur Ghat Feeder F-4,Tree/Branch Fall,Moderate,390,55,Dispatched",
+          "CES-DB-9006,2026-11-18 02:10 PM,Mandya,Pandavapura,11kV Pandavapura Sugar Mill F-2,Planned Maintenance,Moderate,450,90,Resolved"
+        ];
+        triggerCsvDownload(csvLines.join("\n"), "CESCOM_OMS_Database_Export_Sample.csv");
+        showToast("Downloaded sample CESCOM database export CSV.");
+      }
+
+      function exportFilteredCsv() {
+        const filtered = getFilteredIncidents();
+        const header = "incident_id,reported_at,district,village,feeder,root_cause,severity,affected_households,duration_mins,status,source";
+        const rows = filtered.map(r =>
+          [
+            r.id,
+            `"${r.reportedAt}"`,
+            `"${r.district}"`,
+            `"${r.village}"`,
+            `"${r.feeder}"`,
+            `"${r.cause}"`,
+            r.severity,
+            r.households,
+            r.durationMins,
+            r.status,
+            `"${r.origin || 'Archive'}"`
+          ].join(",")
+        );
+        triggerCsvDownload([header, ...rows].join("\n"), `CESCOM_Filtered_Outages_${new Date().toISOString().slice(0,10)}.csv`);
+        showToast(`Exported ${filtered.length} records to CSV.`);
+      }
+
+      function triggerCsvDownload(csvContent, filename) {
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+
+      /* ----------------------------------------------------------------------
+         6. LIVE SCADA / REST / WEBSOCKET STREAMING ENGINE
+         ---------------------------------------------------------------------- */
+      function appendScadaLog(msg) {
+        const ts = new Date().toLocaleTimeString("en-IN", { hour12: false });
+        const line = document.createElement("div");
+        line.textContent = `[${ts}] ${msg}`;
+        el.scadaDiagLog.appendChild(line);
+        el.scadaDiagLog.scrollTop = el.scadaDiagLog.scrollHeight;
+      }
+
+      function ingestScadaPacket(rawPayload) {
+        const list = Array.isArray(rawPayload) ? rawPayload : [rawPayload];
+        let addedCount = 0;
+
+        list.forEach((rawItem, idx) => {
+          const normalized = normalizeCescomRecord(rawItem, scadaState.packetsReceived + idx, "Live SCADA");
+          const existingIdx = incidents.findIndex(i => i.id === normalized.id);
+          if (existingIdx !== -1) {
+            incidents[existingIdx] = normalized;
+          } else {
+            incidents.unshift(normalized);
+            addedCount++;
+          }
+          scadaState.packetsReceived++;
+        });
+
+        activeDataSourceType = "scada";
+        activeDataSourceLabel = `Live SCADA (${scadaState.mode.toUpperCase()})`;
+        updateDashboard();
+        if (addedCount > 0) {
+          appendScadaLog(`Ingested ${addedCount} new SCADA telemetry packet(s) [Total packets: ${scadaState.packetsReceived}].`);
+        }
+      }
+
+      function generateSimulatedScadaPacket() {
+        const districts = Object.keys(DISTRICT_VILLAGES);
+        const district = districts[Math.floor(Math.random() * districts.length)];
+        const villages = DISTRICT_VILLAGES[district];
+        const village = villages[Math.floor(Math.random() * villages.length)];
+        const causes = ROOT_CAUSES.map(c => c.name);
+        const severities = ["Critical", "High", "Moderate"];
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+
+        return {
+          incident_id: `SCADA-${Math.floor(10000 + Math.random() * 89999)}`,
+          year: 2026,
+          month: 11,
+          date: 20,
+          reported_at: `20/11/2026 at ${timeStr}`,
+          district,
+          village,
+          feeder: `11kV ${village} RTU-Feeder #${Math.floor(1 + Math.random() * 6)}`,
+          root_cause: causes[Math.floor(Math.random() * causes.length)],
+          severity: severities[Math.floor(Math.random() * severities.length)],
+          affected_households: 180 + Math.floor(Math.random() * 720),
+          duration_mins: 15 + Math.floor(Math.random() * 45),
+          status: "Active"
+        };
+      }
+
+      function stopScadaConnection(silent) {
+        if (scadaState.timerId) {
+          clearInterval(scadaState.timerId);
+          scadaState.timerId = null;
+        }
+        if (scadaState.ws) {
+          try { scadaState.ws.close(); } catch (e) {}
+          scadaState.ws = null;
+        }
+        scadaState.active = false;
+        scadaState.mode = null;
+
+        el.headerConnectionBadge.className = "live-badge";
+        el.headerConnectionText.textContent = "CESCOM Archive Ready";
+        el.quickSimScadaBtn.textContent = "Start Live SCADA Simulation";
+        updateTelemetryBanner();
+
+        if (!silent) {
+          appendScadaLog("SCADA telemetry stream disconnected.");
+          showToast("Disconnected from Live SCADA stream.");
+        }
+      }
+
+      function startScadaConnection(mode, endpointUrl, token, intervalMs) {
+        stopScadaConnection(true);
+        scadaState.active = true;
+        scadaState.mode = mode;
+
+        el.headerConnectionBadge.className = "live-badge scada-connected";
+        el.quickSimScadaBtn.textContent = "Stop Live SCADA Stream";
+
+        if (mode === "sim") {
+          el.headerConnectionText.textContent = "Live SCADA Stream (Sim)";
+          appendScadaLog(`Connected to CESCOM Simulated SCADA RTU Bus (interval: ${intervalMs / 1000}s).`);
+          ingestScadaPacket(generateSimulatedScadaPacket());
+          scadaState.timerId = setInterval(() => {
+            ingestScadaPacket(generateSimulatedScadaPacket());
+          }, intervalMs);
+          showToast("Live SCADA simulated stream connected!");
+        } else if (mode === "rest") {
+          el.headerConnectionText.textContent = "Live SCADA REST Polling";
+          appendScadaLog(`Polling REST endpoint: ${endpointUrl} every ${intervalMs / 1000}s...`);
+
+          const pollRest = async () => {
+            try {
+              const headers = { "Accept": "application/json" };
+              if (token) headers["Authorization"] = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+              const res = await fetch(endpointUrl, { headers });
+              if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+              const data = await res.json();
+              const records = Array.isArray(data) ? data : (data.outages || data.records || data.data || [data]);
+              ingestScadaPacket(records);
+            } catch (err) {
+              el.headerConnectionBadge.className = "live-badge scada-error";
+              el.headerConnectionText.textContent = "SCADA Endpoint Unreachable";
+              appendScadaLog(`REST Error: ${err.message}. Check CORS/endpoint or use Simulated mode.`);
+            }
+          };
+
+          pollRest();
+          scadaState.timerId = setInterval(pollRest, intervalMs);
+          showToast("Started Live SCADA REST polling.");
+        } else if (mode === "ws") {
+          el.headerConnectionText.textContent = "Connecting WebSocket...";
+          appendScadaLog(`Opening WebSocket stream to ${endpointUrl}...`);
+          try {
+            const ws = new WebSocket(endpointUrl);
+            scadaState.ws = ws;
+            ws.onopen = () => {
+              el.headerConnectionBadge.className = "live-badge scada-connected";
+              el.headerConnectionText.textContent = "Live SCADA WebSocket";
+              appendScadaLog("WebSocket handshake established. Listening for substation frames...");
+              if (token) ws.send(JSON.stringify({ type: "auth", token }));
+            };
+            ws.onmessage = (event) => {
+              try {
+                const payload = JSON.parse(event.data);
+                ingestScadaPacket(payload);
+              } catch (e) {
+                appendScadaLog(`Malformed WebSocket frame ignored: ${e.message}`);
+              }
+            };
+            ws.onerror = () => {
+              el.headerConnectionBadge.className = "live-badge scada-error";
+              el.headerConnectionText.textContent = "SCADA WS Error";
+              appendScadaLog("WebSocket connection error. Verify ws:// or wss:// endpoint.");
+            };
+            ws.onclose = () => {
+              appendScadaLog("WebSocket closed by remote host.");
+            };
+          } catch (err) {
+            el.headerConnectionBadge.className = "live-badge scada-error";
+            appendScadaLog(`WebSocket init failed: ${err.message}`);
+          }
+        }
+
+        updateTelemetryBanner();
+      }
+
+      function updateTelemetryBanner() {
+        if (scadaState.active) {
+          el.activeSourceBadge.className = "source-pill scada-live";
+          el.activeSourceBadge.textContent = `Source: ${activeDataSourceLabel}`;
+          el.telemetryMetricsText.innerHTML = `<strong>${incidents.length.toLocaleString("en-IN")}</strong> total records &bull; <strong>${scadaState.packetsReceived}</strong> live SCADA packets ingested`;
+        } else if (activeDataSourceType === "csv") {
+          el.activeSourceBadge.className = "source-pill db-imported";
+          el.activeSourceBadge.textContent = `Source: ${activeDataSourceLabel}`;
+          el.telemetryMetricsText.innerHTML = `<strong>${incidents.length.toLocaleString("en-IN")}</strong> records active from CESCOM database import`;
+        } else {
+          el.activeSourceBadge.className = "source-pill";
+          el.activeSourceBadge.textContent = "Source: Built-in CESCOM 2000–2026 Archive";
+          el.telemetryMetricsText.innerHTML = `<strong>${incidents.length.toLocaleString("en-IN")}</strong> verified records loaded &bull; Ready for CSV/JSON database import or live SCADA stream`;
+        }
+      }
+
+      /* ----------------------------------------------------------------------
+         7. FILTERING & RENDERING PIPELINE
+         ---------------------------------------------------------------------- */
+      function populateVillageDropdown(selectElement, districtValue, includeAllOption) {
+        selectElement.innerHTML = "";
+        if (includeAllOption) {
+          const allOpt = document.createElement("option");
+          allOpt.value = "All";
+          allOpt.textContent = districtValue === "All"
+            ? "All Villages (50 Monitored)"
+            : `All ${districtValue} Villages (10)`;
+          selectElement.appendChild(allOpt);
+        }
+
+        const districtsToList = districtValue === "All"
+          ? Object.keys(DISTRICT_VILLAGES)
+          : [districtValue];
+
+        districtsToList.forEach((dist) => {
+          DISTRICT_VILLAGES[dist].forEach((village) => {
+            const opt = document.createElement("option");
+            opt.value = village;
+            opt.textContent = districtValue === "All" ? `${village} (${dist.split(" ")[0]})` : village;
+            selectElement.appendChild(opt);
+          });
+        });
+      }
+
+      function getFilteredIncidents() {
+        const query = state.search.trim().toLowerCase();
+        return incidents.filter((item) => {
+          if (state.year !== "All" && String(item.year) !== String(state.year)) return false;
+          if (state.month !== "All" && String(item.month) !== String(state.month)) return false;
+          if (state.date !== "All" && String(item.date) !== String(state.date)) return false;
+          if (state.district !== "All" && item.district !== state.district) return false;
+          if (state.village !== "All" && item.village !== state.village) return false;
+          if (state.status !== "All" && item.status !== state.status) return false;
+          if (query) {
+            const hay = `${item.id} ${item.district} ${item.village} ${item.feeder} ${item.cause} ${item.status} ${item.reportedAt} ${item.origin || ""}`.toLowerCase();
+            if (!hay.includes(query)) return false;
+          }
+          return true;
+        });
+      }
+
+      function showToast(message) {
+        el.toastBanner.textContent = message;
+        el.toastBanner.classList.add("show");
+        setTimeout(() => el.toastBanner.classList.remove("show"), 3200);
+      }
+
+      function renderKPIs(filtered) {
+        const total = filtered.length;
+        const activeList = filtered.filter((i) => i.status === "Active" || i.status === "Dispatched");
+        const unresolvedCount = activeList.length;
+        const resolvedCount = filtered.filter((i) => i.status === "Resolved").length;
+
+        const avgMins = total > 0
+          ? Math.round(filtered.reduce((acc, item) => acc + item.durationMins, 0) / total)
+          : 0;
+
+        const affectedHomes = activeList.reduce((acc, item) => acc + item.households, 0);
+        const totalHomes = filtered.reduce((acc, item) => acc + item.households, 0);
+
+        el.kpiTotal.textContent = total.toLocaleString("en-IN");
+        el.kpiTotalSub.textContent = `${resolvedCount} resolved in selection`;
+
+        el.kpiActive.textContent = unresolvedCount.toLocaleString("en-IN");
+        el.kpiActiveSub.textContent = `${filtered.filter(i=>i.status==="Active").length} unassigned • ${filtered.filter(i=>i.status==="Dispatched").length} dispatched`;
+
+        el.kpiAvgTime.innerHTML = `${avgMins} <span style="font-size: 1rem; font-weight: 600; color: #64748b;">mins</span>`;
+
+        el.kpiHouseholds.textContent = affectedHomes.toLocaleString("en-IN");
+        el.kpiHouseholdsSub.textContent = `${totalHomes.toLocaleString("en-IN")} total impacted connections`;
+      }
+
+      function renderHotspotChips() {
+        el.districtHotspotGrid.innerHTML = "";
+        Object.entries(DISTRICT_VILLAGES).forEach(([districtName, villages]) => {
+          const card = document.createElement("article");
+          card.className = "section-card";
+          const heading = document.createElement("div");
+          heading.className = "section-header";
+          const titleWrap = document.createElement("div");
+          const title = document.createElement("h2");
+          title.className = "section-title";
+          title.textContent = `${districtName} District — Rural Village Feeders`;
+          const subtitle = document.createElement("p");
+          subtitle.className = "section-sub";
+          subtitle.textContent = "Click any village chip to filter telemetry";
+          titleWrap.append(title, subtitle);
+          const badge = document.createElement("span");
+          badge.className = "district-badge";
+          heading.append(titleWrap, badge);
+          const container = document.createElement("div");
+          container.className = "village-chips";
+          card.append(heading, container);
+          el.districtHotspotGrid.appendChild(card);
+
+          let activeInDistrict = 0;
+
+          villages.forEach((village) => {
+            const villageIncidents = incidents.filter((i) => {
+              if (state.year !== "All" && String(i.year) !== String(state.year)) return false;
+              if (state.month !== "All" && String(i.month) !== String(state.month)) return false;
+              if (state.date !== "All" && String(i.date) !== String(state.date)) return false;
+              return i.district === districtName && i.village === village;
+            });
+            const openCount = villageIncidents.filter((i) => i.status !== "Resolved").length;
+            if (openCount > 0) activeInDistrict += openCount;
+
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "village-chip" + (state.village === village ? " selected" : "");
+            chip.title = `Filter by ${village} (${openCount} outages)`;
+
+            const dotColor = openCount >= 2 ? "#dc2626" : openCount === 1 ? "#f59e0b" : "#10b981";
+            chip.innerHTML = `
+              <span class="chip-dot" style="background: ${state.village === village ? "#ffffff" : dotColor};"></span>
+              <span>${village}</span>
+              <span class="chip-count">${openCount}</span>
+            `;
+
+            chip.addEventListener("click", () => {
+              if (state.village === village) {
+                state.village = "All";
+              } else {
+                state.district = districtName;
+                el.districtFilter.value = districtName;
+                populateVillageDropdown(el.villageFilter, districtName, true);
+                state.village = village;
+              }
+              el.villageFilter.value = state.village;
+              updateDashboard();
+            });
+
+            container.appendChild(chip);
+          });
+
+          badge.textContent = `${activeInDistrict} Open Outages`;
+        });
+      }
+
+      function renderTrendSVG(filtered) {
+        let series = [];
+        if (state.year === "All") {
+          for (let y = 2000; y <= 2026; y += 2) {
+            const count = filtered.filter(i => i.year >= y && i.year < y + 2).length;
+            series.push({ label: `${y}`, outages: count, risk: 40 + ((y * 3) % 45) });
+          }
+        } else if (state.month === "All") {
+          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          for (let m = 1; m <= 12; m++) {
+            const count = filtered.filter(i => i.month === m).length;
+            series.push({ label: monthNames[m-1], outages: count, risk: 45 + ((m * 7) % 40) });
+          }
+        } else {
+          for (let d = 1; d <= 28; d += 3) {
+            const count = filtered.filter(i => i.date >= d && i.date < d + 3).length;
+            series.push({ label: `${d}-${d+2}`, outages: count, risk: 50 + ((d * 5) % 35) });
+          }
+        }
+
+        const maxOutage = Math.max(10, ...series.map((s) => s.outages + 3));
+        const width = 620;
+        const height = 225;
+        const padLeft = 36;
+        const padRight = 38;
+        const padTop = 20;
+        const padBottom = 34;
+        const plotW = width - padLeft - padRight;
+        const plotH = height - padTop - padBottom;
+        const stepX = plotW / series.length;
+
+        let gridLines = "";
+        for (let i = 0; i <= 4; i++) {
+          const y = padTop + (plotH / 4) * i;
+          const labelVal = Math.round(maxOutage - (maxOutage / 4) * i);
+          gridLines += `
+            <line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="#e2e8f0" stroke-dasharray="3,3" />
+            <text x="${padLeft - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="#64748b">${labelVal}</text>
+          `;
+        }
+
+        let bars = "";
+        let linePoints = [];
+        let dots = "";
+        let xLabels = "";
+
+        series.forEach((pt, i) => {
+          const centerX = padLeft + stepX * i + stepX / 2;
+          const barW = Math.min(26, stepX * 0.52);
+          const barH = (pt.outages / maxOutage) * plotH;
+          const barY = padTop + plotH - barH;
+
+          bars += `
+            <rect x="${centerX - barW / 2}" y="${barY}" width="${barW}" height="${barH}" rx="4" fill="#2563eb" opacity="0.88">
+              <title>${pt.label}: ${pt.outages} Outages | Risk: ${pt.risk}%</title>
+            </rect>
+          `;
+
+          const riskY = padTop + plotH - (pt.risk / 100) * plotH;
+          linePoints.push(`${centerX},${riskY}`);
+          dots += `
+            <circle cx="${centerX}" cy="${riskY}" r="3.8" fill="#f59e0b" stroke="#ffffff" stroke-width="1.5">
+              <title>${pt.label} Risk: ${pt.risk}%</title>
+            </circle>
+          `;
+
+          xLabels += `
+            <text x="${centerX}" y="${height - 10}" text-anchor="middle" font-size="9" font-weight="600" fill="#475569">${pt.label}</text>
+          `;
+        });
+
+        el.trendChartContainer.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}" width="100%" height="auto" role="img" aria-label="Historical Outage Trend Chart">
+            ${gridLines}
+            ${bars}
+            <polyline fill="none" stroke="#f59e0b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" points="${linePoints.join(" ")}" />
+            ${dots}
+            ${xLabels}
+          </svg>
+        `;
+      }
+
+      function renderRootCauses(filtered) {
+        el.rootCauseContainer.innerHTML = "";
+        const total = filtered.length || 1;
+
+        ROOT_CAUSES.forEach((rc) => {
+          const count = filtered.filter((i) => i.cause === rc.name).length;
+          const pct = filtered.length > 0 ? Math.round((count / total) * 100) : 0;
+
+          const row = document.createElement("div");
+          row.className = "cause-item";
+          row.innerHTML = `
+            <div class="cause-header">
+              <span>${rc.name}</span>
+              <span class="cause-stats">${count} incidents (${pct}%)</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width: ${pct}%; background: ${rc.color};"></div>
+            </div>
+          `;
+          el.rootCauseContainer.appendChild(row);
+        });
+      }
+
+      function renderIncidentTable(filtered) {
+        el.tableCountBadge.textContent = `${filtered.length} Incident${filtered.length === 1 ? "" : "s"}`;
+        el.incidentTableBody.innerHTML = "";
+
+        if (filtered.length === 0) {
+          const emptyRow = document.createElement("tr");
+          emptyRow.innerHTML = `
+            <td colspan="10" style="text-align: center; padding: 2rem 1rem; color: #64748b;">
+              No outage records match the selected Year / Month / Date / District filters. Try changing your timeline or click <strong>Reset Filters</strong>.
+            </td>
+          `;
+          el.incidentTableBody.appendChild(emptyRow);
+          return;
+        }
+
+        const displayList = filtered.slice(0, 100);
+
+        displayList.forEach((item) => {
+          const tr = document.createElement("tr");
+
+          let actionHtml = "";
+          if (item.status === "Active") {
+            actionHtml = `
+              <div class="action-btns">
+                <button type="button" class="btn-sm btn-dispatch" data-action="dispatch" data-id="${item.id}">Dispatch</button>
+                <button type="button" class="btn-sm btn-resolve" data-action="resolve" data-id="${item.id}">Resolve</button>
+              </div>
+            `;
+          } else if (item.status === "Dispatched") {
+            actionHtml = `
+              <div class="action-btns">
+                <button type="button" class="btn-sm btn-resolve" data-action="resolve" data-id="${item.id}">Resolve</button>
+              </div>
+            `;
+          } else {
+            actionHtml = `<span class="resolved-note">&#10003; Restored</span>`;
+          }
+
+          const originClass = item.origin === "Live SCADA" ? "scada" : item.origin === "CESCOM DB" ? "csv" : "";
+          const originBadge = item.origin && item.origin !== "Archive"
+            ? `<div><span class="origin-tag ${originClass}">${item.origin}</span></div>`
+            : "";
+
+          tr.innerHTML = `
+            <td><strong>${item.id}</strong>${originBadge}</td>
+            <td style="font-size: 0.78rem; color: #475569;">${item.reportedAt}</td>
+            <td><strong>${item.village}</strong><div style="font-size: 0.72rem; color: #64748b;">${item.district}</div></td>
+            <td>${item.feeder}</td>
+            <td>${item.cause}</td>
+            <td><span class="severity-tag sev-${item.severity}">${item.severity}</span></td>
+            <td><strong>${item.households.toLocaleString("en-IN")}</strong></td>
+            <td>${item.durationMins} mins</td>
+            <td><span class="status-pill status-${item.status}">${item.status}</span></td>
+            <td>${actionHtml}</td>
+          `;
+
+          el.incidentTableBody.appendChild(tr);
+        });
+
+        if (filtered.length > 100) {
+          const noteRow = document.createElement("tr");
+          noteRow.innerHTML = `
+            <td colspan="10" style="text-align: center; padding: 0.75rem; font-size: 0.78rem; color: #64748b; background: #f8fafc;">
+              Showing first 100 of ${filtered.length} matching records. Narrow down by Month, Date, or Village to view specific logs.
+            </td>
+          `;
+          el.incidentTableBody.appendChild(noteRow);
+        }
+      }
+
+      function updateFilterBanner() {
+        const yStr = state.year === "All" ? "2000–2026 Archive" : `Year: ${state.year}`;
+        const mStr = state.month === "All" ? "All Months" : `Month: ${el.monthFilter.options[el.monthFilter.selectedIndex].text}`;
+        const dStr = state.date === "All" ? "All Dates" : `Date: ${state.date}`;
+        const distStr = state.district === "All" ? "All Districts" : state.district;
+
+        el.activeFilterSummary.firstElementChild.innerHTML =
+          `Active Timeline &amp; Scope: <strong>${yStr}</strong> &bull; <strong>${mStr}</strong> &bull; <strong>${dStr}</strong> &bull; <strong>${distStr}</strong>`;
+
+        el.lastUpdatedLabel.textContent = `Synced ${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+      }
+
+      function renderReliabilityMetrics(filtered) {
+        const N = filtered.length;
+        const T = filtered.reduce((sum, item) => sum + (Number(item.durationMins) || 0), 0) / 60;
+        // Calculate the elapsed calendar hours represented by the active date filters.
+        const years = state.year !== "All" ? [Number(state.year)] :
+          [...new Set(incidents.map(i => Number(i.year)).filter(Number.isFinite))];
+        let days = 0;
+        years.forEach(year => {
+          const months = state.month !== "All" ? [Number(state.month)] : Array.from({length:12}, (_,i)=>i+1);
+          months.forEach(month => {
+            const lastDay = new Date(year, month, 0).getDate();
+            if (state.date !== "All") {
+              const d = Number(state.date);
+              if (d >= 1 && d <= lastDay) days += 1;
+            } else days += lastDay;
+          });
+        });
+        const Ttotal = days * 24;
+        const outageRisk = T > 0 ? (N / T) * 100 : 0;
+        const avgDuration = N > 0 ? T / N : 0;
+        const reliability = Ttotal > 0 ? (1 - T / Ttotal) * 100 : 0;
+        const cards = [
+          ["Outage Risk", `${outageRisk.toFixed(2)}%`, "R = (N / T) × 100", "Incidents per outage-hour × 100"],
+          ["Average Outage Duration", `${avgDuration.toFixed(2)} hrs`, "Davg = T / N", "Average duration per incident"],
+          ["Reliability Index", `${reliability.toFixed(2)}%`, "R = (1 − T / Ttotal) × 100", "Availability during selected period"]
+        ];
+        const host = document.getElementById("reliabilityMetrics");
+        if (!host) return;
+        host.innerHTML = "";
+        cards.forEach(([label, value, formula, detail]) => {
+          const card = document.createElement("article");
+          card.style.cssText = "padding:18px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;min-width:0";
+          const h = document.createElement("div"); h.textContent = label;
+          h.style.cssText = "font-size:13px;font-weight:700;color:#475569";
+          const v = document.createElement("div"); v.textContent = value;
+          v.style.cssText = "font-size:clamp(22px,3vw,30px);font-weight:800;color:#0f172a;margin:10px 0";
+          const f = document.createElement("div"); f.textContent = formula;
+          f.style.cssText = "font-size:13px;font-weight:700;color:#2563eb";
+          const d = document.createElement("div"); d.textContent = detail;
+          d.style.cssText = "font-size:11px;color:#64748b;margin-top:6px";
+          card.append(h,v,f,d); host.appendChild(card);
+        });
+      }
+
+      function updateDashboard() {
+        const filtered = getFilteredIncidents();
+        updateTelemetryBanner();
+        updateFilterBanner();
+        renderKPIs(filtered);
+        renderReliabilityMetrics(filtered);
+        renderHotspotChips();
+        renderTrendSVG(filtered);
+        renderRootCauses(filtered);
+        renderIncidentTable(filtered);
+      }
+
+      /* ----------------------------------------------------------------------
+         8. EVENT LISTENERS
+         ---------------------------------------------------------------------- */
+      el.yearFilter.addEventListener("change", (e) => {
+        state.year = e.target.value;
+        updateDateDropdown(state.year, state.month, el.dateFilter);
+        updateDashboard();
+      });
+
+      el.monthFilter.addEventListener("change", (e) => {
+        state.month = e.target.value;
+        state.date = "All";
+        updateDateDropdown(state.year, state.month, el.dateFilter);
+        el.dateFilter.value = "All";
+        updateDashboard();
+      });
+
+      el.dateFilter.addEventListener("change", (e) => {
+        state.date = e.target.value;
+        updateDashboard();
+      });
+
+      el.districtFilter.addEventListener("change", (e) => {
+        state.district = e.target.value;
+        state.village = "All";
+        populateVillageDropdown(el.villageFilter, state.district, true);
+        updateDashboard();
+      });
+
+      el.villageFilter.addEventListener("change", (e) => {
+        state.village = e.target.value;
+        updateDashboard();
+      });
+
+      el.statusFilter.addEventListener("change", (e) => {
+        state.status = e.target.value;
+        updateDashboard();
+      });
+
+      el.searchInput.addEventListener("input", (e) => {
+        state.search = e.target.value;
+        updateDashboard();
+      });
+
+      el.resetFiltersBtn.addEventListener("click", () => {
+        state.year = "All";
+        state.month = "All";
+        state.date = "All";
+        state.district = "All";
+        state.village = "All";
+        state.status = "All";
+        state.search = "";
+
+        el.yearFilter.value = "All";
+        el.monthFilter.value = "All";
+        updateDateDropdown("All", "All", el.dateFilter);
+        el.dateFilter.value = "All";
+        el.districtFilter.value = "All";
+        populateVillageDropdown(el.villageFilter, "All", true);
+        el.villageFilter.value = "All";
+        el.statusFilter.value = "All";
+        el.searchInput.value = "";
+
+        updateDashboard();
+        showToast("Filters reset to full archive view.");
+      });
+
+      el.incidentTableBody.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-action]");
+        if (!btn) return;
+        const id = btn.getAttribute("data-id");
+        const action = btn.getAttribute("data-action");
+        const target = incidents.find((item) => item.id === id);
+        if (!target) return;
+
+        if (action === "dispatch") {
+          target.status = "Dispatched";
+          showToast(`Linemen crew dispatched to ${target.village} (${target.id}).`);
+        } else if (action === "resolve") {
+          target.status = "Resolved";
+          showToast(`Power restored in ${target.village} (${target.id}).`);
+        }
+        updateDashboard();
+      });
+
+      /* Quick Toolbar Buttons */
+      el.downloadTemplateBtn.addEventListener("click", downloadSampleCescomCsv);
+      el.modalDownloadSampleBtn.addEventListener("click", downloadSampleCescomCsv);
+      el.exportCurrentCsvBtn.addEventListener("click", exportFilteredCsv);
+
+      el.quickSimScadaBtn.addEventListener("click", () => {
+        if (scadaState.active) {
+          stopScadaConnection(false);
+        } else {
+          startScadaConnection("sim", "", "", 4000);
+        }
+      });
+
+      /* Import CESCOM DB Modal Controls */
+      el.openImportModalBtn.addEventListener("click", () => {
+        pendingImportedRecords = [];
+        el.confirmImportBtn.disabled = true;
+        el.dbFileInput.value = "";
+        el.importValidationBox.className = "validation-box";
+        el.importValidationBox.innerHTML = "<strong>Schema Validator Idle:</strong> Select a CESCOM CSV/JSON export to inspect column mapping and record counts before importing.";
+        el.importDbModal.classList.add("open");
+      });
+
+      function closeImportModal() {
+        el.importDbModal.classList.remove("open");
+      }
+
+      el.closeImportModalBtn.addEventListener("click", closeImportModal);
+      el.cancelImportModalBtn.addEventListener("click", closeImportModal);
+      el.importDbModal.addEventListener("click", (e) => { if (e.target === el.importDbModal) closeImportModal(); });
+
+      el.csvDropzone.addEventListener("click", () => el.dbFileInput.click());
+      el.csvDropzone.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          el.dbFileInput.click();
+        }
+      });
+      el.csvDropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        el.csvDropzone.classList.add("dragover");
+      });
+      el.csvDropzone.addEventListener("dragleave", () => el.csvDropzone.classList.remove("dragover"));
+      el.csvDropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        el.csvDropzone.classList.remove("dragover");
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          parseUploadedFile(e.dataTransfer.files[0]);
+        }
+      });
+      el.dbFileInput.addEventListener("change", (e) => {
+        if (e.target.files && e.target.files[0]) {
+          parseUploadedFile(e.target.files[0]);
+        }
+      });
+
+      el.confirmImportBtn.addEventListener("click", () => {
+        if (pendingImportedRecords.length === 0) return;
+        const mode = el.importModeSelect.value;
+        if (mode === "replace") {
+          incidents = [...pendingImportedRecords];
+        } else {
+          const existingIds = new Set(incidents.map(i => i.id));
+          const uniqueNew = pendingImportedRecords.filter(r => !existingIds.has(r.id));
+          incidents = [...uniqueNew, ...incidents];
+        }
+        activeDataSourceType = "csv";
+        activeDataSourceLabel = `CESCOM DB Export (${pendingImportedRecords.length} records)`;
+        closeImportModal();
+        updateDashboard();
+        showToast(`Imported ${pendingImportedRecords.length} CESCOM database records (${mode} mode).`);
+      });
+
+      el.restoreDefaultArchiveBtn.addEventListener("click", () => {
+        stopScadaConnection(true);
+        incidents = generateArchiveData();
+        activeDataSourceType = "archive";
+        activeDataSourceLabel = "Built-in CESCOM 2000–2026 Archive";
+        closeImportModal();
+        updateDashboard();
+        showToast("Restored default CESCOM 2000–2026 archive.");
+      });
+
+      /* Live SCADA Modal Controls */
+      el.openScadaModalBtn.addEventListener("click", () => el.scadaModal.classList.add("open"));
+      function closeScadaModal() { el.scadaModal.classList.remove("open"); }
+      el.closeScadaModalBtn.addEventListener("click", closeScadaModal);
+      el.cancelScadaModalBtn.addEventListener("click", closeScadaModal);
+      el.scadaModal.addEventListener("click", (e) => { if (e.target === el.scadaModal) closeScadaModal(); });
+
+      el.connectScadaBtn.addEventListener("click", () => {
+        const mode = el.scadaProtocol.value;
+        const url = el.scadaEndpointUrl.value.trim();
+        const token = el.scadaAuthToken.value.trim();
+        const intervalMs = parseInt(el.scadaPollInterval.value, 10) || 5000;
+        startScadaConnection(mode, url, token, intervalMs);
+        closeScadaModal();
+      });
+
+      el.disconnectScadaBtn.addEventListener("click", () => {
+        stopScadaConnection(false);
+        closeScadaModal();
+      });
+
+      /* Modal Controls (+ Log New Outage) */
+      function openModal() {
+        const prefillDistrict = state.district !== "All" ? state.district : "Mandya";
+        el.modalDistrict.value = prefillDistrict;
+        populateVillageDropdown(el.modalVillage, prefillDistrict, false);
+        if (state.village !== "All") el.modalVillage.value = state.village;
+        if (state.year !== "All") el.modalYear.value = state.year;
+        if (state.month !== "All") el.modalMonth.value = state.month;
+        if (state.date !== "All") el.modalDateNum.value = state.date;
+        el.modalFeeder.value = `11kV ${el.modalVillage.value} Rural Feeder`;
+        el.outageModal.classList.add("open");
+      }
+
+      function closeModal() {
+        el.outageModal.classList.remove("open");
+      }
+
+      el.openModalBtn.addEventListener("click", openModal);
+      el.closeModalBtn.addEventListener("click", closeModal);
+      el.cancelModalBtn.addEventListener("click", closeModal);
+      el.outageModal.addEventListener("click", (e) => { if (e.target === el.outageModal) closeModal(); });
+
+      el.modalDistrict.addEventListener("change", (e) => {
+        populateVillageDropdown(el.modalVillage, e.target.value, false);
+        el.modalFeeder.value = `11kV ${e.target.value} Rural Feeder`;
+      });
+      el.modalVillage.addEventListener("change", (e) => {
+        el.modalFeeder.value = `11kV ${e.target.value} Rural Feeder`;
+      });
+
+      el.newOutageForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const y = parseInt(el.modalYear.value, 10);
+        const m = parseInt(el.modalMonth.value, 10);
+        const d = parseInt(el.modalDateNum.value, 10);
+        const nextId = `CES-${3000 + incidents.length}`;
+
+        const newRecord = {
+          id: nextId,
+          year: y,
+          month: m,
+          date: d,
+          district: el.modalDistrict.value,
+          village: el.modalVillage.value,
+          feeder: el.modalFeeder.value.trim(),
+          cause: el.modalCause.value,
+          severity: el.modalSeverity.value,
+          households: parseInt(el.modalHouseholds.value, 10) || 300,
+          durationMins: 45,
+          status: "Active",
+          reportedAt: `${d < 10 ? '0'+d : d}/${m < 10 ? '0'+m : m}/${y} at 01:19 PM`,
+          origin: "Manual Entry"
+        };
+
+        incidents.unshift(newRecord);
+        closeModal();
+        state.year = y;
+        state.month = m;
+        state.date = d;
+        el.yearFilter.value = y;
+        el.monthFilter.value = m;
+        updateDateDropdown(y, m, el.dateFilter);
+        el.dateFilter.value = d;
+
+        updateDashboard();
+        showToast(`Successfully logged new outage ${newRecord.id} for ${y}-${m}-${d}.`);
+      });
+
+      /* ----------------------------------------------------------------------
+         9. INITIALIZATION
+         ---------------------------------------------------------------------- */
+      initYearDropdowns();
+      updateDateDropdown("All", "All", el.dateFilter);
+      populateVillageDropdown(el.villageFilter, "All", true);
+      populateVillageDropdown(el.modalVillage, "Mandya", false);
+      incidents = generateArchiveData();
+      updateDashboard();
+    })();
+  </script>
+</body>
+</html>
